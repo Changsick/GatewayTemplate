@@ -10,6 +10,6 @@ public class TestRestController {
 
     @GetMapping
     public String test() {
-        return "server1 - test";
+        return "server1 - SUCCESS";
     }
 }
