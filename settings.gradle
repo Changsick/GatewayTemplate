@@ -1,0 +1,5 @@
+rootProject.name = 'song-test'
+include 'core-gateway'
+include 'core-auth'
+include 'core-server1'
+include 'core-server2'

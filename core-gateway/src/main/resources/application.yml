@@ -1,0 +1,26 @@
+server:
+  port: 9090
+
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: core-server1
+          uri: http://localhost:9092
+          predicates:
+            - Path=/server1/**
+        - id: core-server2
+          uri: http://localhost:9093
+          predicates:
+            - Path=/server2/**
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9091
+          jwk-set-uri: http://localhost:9091/.well-known/jwks.json
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
