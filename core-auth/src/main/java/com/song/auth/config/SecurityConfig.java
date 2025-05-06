@@ -57,7 +57,7 @@ public class SecurityConfig {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login","/.well-known/**", "/.well-known/jwks.json",
+                        .requestMatchers("/auth/login","/auth/logout", "/.well-known/**",
                                 "/oauth2/jwks","/oauth2/token").permitAll()
                         .anyRequest().authenticated()
                 )
