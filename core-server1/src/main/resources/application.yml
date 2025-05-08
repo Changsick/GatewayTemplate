@@ -4,6 +4,18 @@ server:
 spring:
   kafka:
     bootstrap-servers: localhost:9092
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  datasource:
+    url: jdbc:mysql://localhost:3306/test_song?useSSL=false
+    username: root
+    password: song
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
 app:
   kafka:
@@ -14,3 +26,13 @@ app:
     topics:
       basic: test-topic
       dlq-basic: test-topic.DLQ
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+    org.springframework.kafka.core: trace
+    org.springframework.transaction.interceptor: trace
+    org.springframework.orm.jpa.JpaTransactionManager: DEBUG
+    org.hibernate.SQL: DEBUG              # 실행되는 SQL 보기
+    org.hibernate.type.descriptor.sql: TRACE
+

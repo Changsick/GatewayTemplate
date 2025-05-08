@@ -2,19 +2,42 @@ package com.song.server1.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.song.server1.dto.TestDTO;
+import com.song.server1.entity.UserEntity;
+import com.song.server1.service.UserService;
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Header;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+
+import java.util.Map;
 
 @Component
 public class KafkaConsumeModule {
 
     private final ObjectMapper objectMapper;
 
-    public KafkaConsumeModule(ObjectMapper objectMapper) {
+    private final KafkaTemplate<String, String> kafkaTemplate;
+
+    private final UserService userService;
+
+    private final PlatformTransactionManager transactionManager;
+
+    private final DefaultTransactionDefinition defaultTransactionDefinition;
+
+    public KafkaConsumeModule(ObjectMapper objectMapper, KafkaTemplate<String, String> kafkaTemplate, UserService userService, PlatformTransactionManager transactionManager, DefaultTransactionDefinition defaultTransactionDefinition) {
         this.objectMapper = objectMapper;
+        this.kafkaTemplate = kafkaTemplate;
+        this.userService = userService;
+        this.transactionManager = transactionManager;
+        this.defaultTransactionDefinition = defaultTransactionDefinition;
     }
 
     @KafkaListener(
@@ -22,17 +45,50 @@ public class KafkaConsumeModule {
             groupId = "#{'${app.kafka.groupId}'}",
             containerFactory = "#{'${app.kafka.containerFactory}'}"
     )
-    // @Transactional("kafkaTransactionManager") 만약 topic to topic(컨슘 이후 프로듀스) 할 경우
-    // producer transaction manager를 명시해야하고, producer send 이후 ack을 수동커밋해야한다.
-    public void listen(ConsumerRecord<String, String> record, String message, Acknowledgment ack) throws Exception {
+    public void listen(ConsumerRecord<String, String> record, // 처리 메시지 메타정보
+                       Consumer<?, ?> consumer, // 컨슈머 메타정보
+                       String message, // 편의상 message 내용만 뽑아 볼 수 있다.
+                       Acknowledgment ack) throws Exception {
         System.out.println("record : " + record);
-        System.out.println("message : " + message); // 편의상 message 내용만 뽑아 볼 수 있다.
+        System.out.println("message : " + message);
         System.out.println("ack : " + ack);
-        // record안엔 origin message랑 부가적인 데이터 싹다 들어있다.
-        TestDTO dto = objectMapper.readValue(record.value(), TestDTO.class);
-        System.out.println("dto : " + dto);
-        if(true) throw new Exception("test Exception");
-        ack.acknowledge();
+
+        kafkaTemplate.executeInTransaction(tx -> {
+
+            // JPA 트랜잭션 명시적 시작
+            TransactionStatus status = transactionManager.getTransaction(defaultTransactionDefinition);
+
+            try {
+                UserEntity dto = objectMapper.readValue(record.value(), UserEntity.class);
+                System.out.println("dto : " + dto);
+
+                // 컨슈머 내에선 db 트랜잭션이 안잡힌다(명시적으로 빼도)
+                // 찾아보니 dlq 재시도 관련 중복될 수 있기때문에 upsert 쓴다하긴함.
+                UserEntity user = new UserEntity();
+                user.setUsername("test--");
+                user.setPassword("123456");
+                userService.saveUser(user);
+                transactionManager.commit(status);
+                // db작업 이후 topic to topic을 해야해서 컨슘 > db > 프로듀싱이 필요하다면
+                // db 작업 이후 프로듀싱하고(tx.send("topic", "message")) 이후 컨슘 메시지 커밋 필요(offset 커밋)
+                if(true) throw new Exception("aaaaaaaaaa");
+
+//                tx.send("another topic", "msg");
+//                Map<TopicPartition, OffsetAndMetadata> offsets = Map.of(
+//                        new TopicPartition("input-topic", ((ConsumerRecord<?, ?>)consumer).partition()),
+//                        new OffsetAndMetadata(((ConsumerRecord<?, ?>)consumer).offset() + 1)
+//                );
+//                tx.sendOffsetsToTransaction(offsets, consumer.groupMetadata());
+
+                ack.acknowledge(); // 메시지 커밋
+            } catch (Exception e) {
+                transactionManager.rollback(status);
+                throw new RuntimeException(e); // Kafka 트랜잭션도 abort
+            }
+            return true;
+            // true는 단순히 executeInTransaction()의 리턴값으로서
+            // 개발자가 그 안의 작업 결과를 받아보는 용도
+        });
     }
 
     @KafkaListener(
@@ -70,12 +126,15 @@ public class KafkaConsumeModule {
             System.out.println("Exception Stacktrace: " + new String(stacktraceHeader.value()));
         }
 
-        try {
+        kafkaTemplate.executeInTransaction(tx -> {
+            try {
+                // 위의 컨슈머와 동일 내용
+                ack.acknowledge();
+            } catch (Exception ex) {
 
-            ack.acknowledge();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            // dlq도 실패하면 우째?
-        }
+                // dlq도 실패하면 우째?
+            }
+            return true;
+        });
     }
 }

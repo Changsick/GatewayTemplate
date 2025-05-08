@@ -4,8 +4,12 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 @Configuration
 public class UtilConfig {
@@ -24,5 +28,15 @@ public class UtilConfig {
         mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
         return mapper;
+    }
+
+    @Bean(name = "transactionManager") // 이름 명시
+    public PlatformTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {
+        return new JpaTransactionManager(entityManagerFactory);
+    }
+
+    @Bean
+    public DefaultTransactionDefinition defaultTransactionDefinition() {
+        return new DefaultTransactionDefinition();
     }
 }

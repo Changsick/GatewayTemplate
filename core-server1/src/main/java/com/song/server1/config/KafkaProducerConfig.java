@@ -36,10 +36,14 @@ public class KafkaProducerConfig {
         config.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE); // 재시도 횟수 무제한
         config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5); // 최대 5개의 요청 동시에 전송
 
-        // 트랜잭션 설정
-        config.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "my-producer-transaction-id");
+        // 아래 트랜잭션 설정이랑 prefix 정하는거랑 중복되는 내용이긴한데 통상 prefix를 더 많이 쓰는듯 하다.
+//        config.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "my-producer-transaction-id");
 
-        return new DefaultKafkaProducerFactory<>(config);
+        // 트랜잭션 설정
+        DefaultKafkaProducerFactory<String, String> factory = new DefaultKafkaProducerFactory<>(config);
+        factory.setTransactionIdPrefix("kafka-transaction-");
+
+        return factory;
     }
 
     @Bean
@@ -47,8 +51,8 @@ public class KafkaProducerConfig {
         return new KafkaTemplate<>(producerFactory());
     }
 
-    @Bean
-    public KafkaTransactionManager<String, String> kafkaTransactionManager() {
-        return new KafkaTransactionManager<>(producerFactory());
-    }
+//    @Bean
+//    public KafkaTransactionManager<String, String> kafkaTransactionManager() {
+//        return new KafkaTransactionManager<>(producerFactory());
+//    }
 }

@@ -14,17 +14,13 @@ public class TestRestController {
 
     private final KafkaProduceModule kafkaProduceModule;
 
-    private final ObjectMapper objectMapper;
-
-    public TestRestController(KafkaProduceModule kafkaProduceModule, ObjectMapper objectMapper) {
+    public TestRestController(KafkaProduceModule kafkaProduceModule) {
         this.kafkaProduceModule = kafkaProduceModule;
-        this.objectMapper = objectMapper;
     }
 
     @GetMapping
     public String test() throws JsonProcessingException {
-        String data = objectMapper.writeValueAsString(new TestDTO("test", 19));
-        kafkaProduceModule.send("test-topic", data);
+        kafkaProduceModule.send("test-topic");
         return "server1 - SUCCESS";
     }
 }
