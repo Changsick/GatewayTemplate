@@ -1,5 +1,7 @@
 package com.song.server1.kafka;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.song.server1.dto.TestDTO;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -8,6 +10,12 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class KafkaConsumeModule {
+
+    private final ObjectMapper objectMapper;
+
+    public KafkaConsumeModule(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @KafkaListener(
             topics = "#{'${app.kafka.topics.basic}'}",
@@ -18,8 +26,11 @@ public class KafkaConsumeModule {
     // producer transaction manager를 명시해야하고, producer send 이후 ack을 수동커밋해야한다.
     public void listen(ConsumerRecord<String, String> record, String message, Acknowledgment ack) throws Exception {
         System.out.println("record : " + record);
-        System.out.println("message : " + message);
+        System.out.println("message : " + message); // 편의상 message 내용만 뽑아 볼 수 있다.
         System.out.println("ack : " + ack);
+        // record안엔 origin message랑 부가적인 데이터 싹다 들어있다.
+        TestDTO dto = objectMapper.readValue(record.value(), TestDTO.class);
+        System.out.println("dto : " + dto);
         if(true) throw new Exception("test Exception");
         ack.acknowledge();
     }
