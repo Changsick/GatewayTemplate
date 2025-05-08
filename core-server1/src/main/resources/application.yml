@@ -1,2 +1,16 @@
 server:
-  port: 9092
+  port: 9094
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+app:
+  kafka:
+    groupId: test-group
+    dlq-groupId: dlq-group
+    containerFactory: kafkaListenerContainerFactory
+    dlq-containerFactory: dlqKafkaListenerContainerFactory
+    topics:
+      basic: test-topic
+      dlq-basic: test-topic.DLQ

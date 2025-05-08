@@ -6,7 +6,7 @@ spring:
     gateway:
       routes:
         - id: core-server1
-          uri: http://localhost:9092
+          uri: http://localhost:9094
           predicates:
             - Path=/server1/**
         - id: core-server2
