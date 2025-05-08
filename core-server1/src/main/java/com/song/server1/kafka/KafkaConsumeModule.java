@@ -1,13 +1,10 @@
 package com.song.server1.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.song.server1.dto.TestDTO;
 import com.song.server1.entity.UserEntity;
 import com.song.server1.service.UserService;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Header;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -15,9 +12,8 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
-
-import java.util.Map;
 
 @Component
 public class KafkaConsumeModule {
@@ -136,5 +132,34 @@ public class KafkaConsumeModule {
             }
             return true;
         });
+    }
+
+    @Transactional
+    public void consumeMessage(ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
+        try {
+            // 1. DB 작업 처리
+//            someDatabaseService.processMessage(record.value());
+
+            // 2. 트랜잭셔널 프로듀서로 메시지 전송
+            kafkaTemplate.executeInTransaction(kafkaProducer -> {
+                String messageId = record.value();  // 메시지의 고유 ID 생성
+                kafkaProducer.send("some-topic", messageId, record.value())
+                        .whenComplete((result, ex) -> {
+                            if (ex != null) {
+                                // 전송 실패 시 예외 처리 (DB 트랜잭션과 롤백)
+                                throw new RuntimeException("Kafka message send failed", ex);
+                            }
+                        });
+                return null;
+            });
+
+            // 3. 메시지 전송 성공 후 DB 작업 완료 및 메시지 커밋
+            acknowledgment.acknowledge();
+
+        } catch (Exception e) {
+            // 예외 처리: DB 롤백 및 메시지 전송 롤백
+            e.printStackTrace();
+            throw e;  // DB 트랜잭션 롤백, Kafka 메시지 전송도 롤백됨
+        }
     }
 }
