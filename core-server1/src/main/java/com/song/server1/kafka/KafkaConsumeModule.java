@@ -1,8 +1,5 @@
 package com.song.server1.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.song.server1.entity.UserEntity;
-import com.song.server1.service.UserService;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
@@ -10,30 +7,18 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 @Component
 public class KafkaConsumeModule {
 
-    private final ObjectMapper objectMapper;
+//    private final ObjectMapper objectMapper;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    private final UserService userService;
+//    private final UserService userService;
 
-    private final PlatformTransactionManager transactionManager;
-
-    private final DefaultTransactionDefinition defaultTransactionDefinition;
-
-    public KafkaConsumeModule(ObjectMapper objectMapper, KafkaTemplate<String, String> kafkaTemplate, UserService userService, PlatformTransactionManager transactionManager, DefaultTransactionDefinition defaultTransactionDefinition) {
-        this.objectMapper = objectMapper;
+    public KafkaConsumeModule(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
-        this.userService = userService;
-        this.transactionManager = transactionManager;
-        this.defaultTransactionDefinition = defaultTransactionDefinition;
     }
 
     @KafkaListener(
@@ -49,42 +34,11 @@ public class KafkaConsumeModule {
         System.out.println("message : " + message);
         System.out.println("ack : " + ack);
 
-        kafkaTemplate.executeInTransaction(tx -> {
-
-            // JPA 트랜잭션 명시적 시작
-            TransactionStatus status = transactionManager.getTransaction(defaultTransactionDefinition);
-
-            try {
-                UserEntity dto = objectMapper.readValue(record.value(), UserEntity.class);
-                System.out.println("dto : " + dto);
-
-                // 컨슈머 내에선 db 트랜잭션이 안잡힌다(명시적으로 빼도)
-                // 찾아보니 dlq 재시도 관련 중복될 수 있기때문에 upsert 쓴다하긴함.
-                UserEntity user = new UserEntity();
-                user.setUsername("test--");
-                user.setPassword("123456");
-                userService.saveUser(user);
-                transactionManager.commit(status);
-                // db작업 이후 topic to topic을 해야해서 컨슘 > db > 프로듀싱이 필요하다면
-                // db 작업 이후 프로듀싱하고(tx.send("topic", "message")) 이후 컨슘 메시지 커밋 필요(offset 커밋)
-                if(true) throw new Exception("aaaaaaaaaa");
-
-//                tx.send("another topic", "msg");
-//                Map<TopicPartition, OffsetAndMetadata> offsets = Map.of(
-//                        new TopicPartition("input-topic", ((ConsumerRecord<?, ?>)consumer).partition()),
-//                        new OffsetAndMetadata(((ConsumerRecord<?, ?>)consumer).offset() + 1)
-//                );
-//                tx.sendOffsetsToTransaction(offsets, consumer.groupMetadata());
-
-                ack.acknowledge(); // 메시지 커밋
-            } catch (Exception e) {
-                transactionManager.rollback(status);
-                throw new RuntimeException(e); // Kafka 트랜잭션도 abort
-            }
-            return true;
-            // true는 단순히 executeInTransaction()의 리턴값으로서
-            // 개발자가 그 안의 작업 결과를 받아보는 용도
-        });
+        try {
+            ack.acknowledge(); // 메시지 커밋
+        } catch (Exception e) {
+            throw new RuntimeException(e); // Kafka 트랜잭션도 abort
+        }
     }
 
     @KafkaListener(
@@ -122,44 +76,13 @@ public class KafkaConsumeModule {
             System.out.println("Exception Stacktrace: " + new String(stacktraceHeader.value()));
         }
 
-        kafkaTemplate.executeInTransaction(tx -> {
-            try {
-                // 위의 컨슈머와 동일 내용
-                ack.acknowledge();
-            } catch (Exception ex) {
-
-                // dlq도 실패하면 우째?
-            }
-            return true;
-        });
-    }
-
-    @Transactional
-    public void consumeMessage(ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
         try {
-            // 1. DB 작업 처리
-//            someDatabaseService.processMessage(record.value());
-
-            // 2. 트랜잭셔널 프로듀서로 메시지 전송
-            kafkaTemplate.executeInTransaction(kafkaProducer -> {
-                String messageId = record.value();  // 메시지의 고유 ID 생성
-                kafkaProducer.send("some-topic", messageId, record.value())
-                        .whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                // 전송 실패 시 예외 처리 (DB 트랜잭션과 롤백)
-                                throw new RuntimeException("Kafka message send failed", ex);
-                            }
-                        });
-                return null;
-            });
-
-            // 3. 메시지 전송 성공 후 DB 작업 완료 및 메시지 커밋
-            acknowledgment.acknowledge();
-
-        } catch (Exception e) {
-            // 예외 처리: DB 롤백 및 메시지 전송 롤백
-            e.printStackTrace();
-            throw e;  // DB 트랜잭션 롤백, Kafka 메시지 전송도 롤백됨
+            // 위의 컨슈머와 동일 내용
+            ack.acknowledge();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+            // dlq도 실패하면 우째?
         }
     }
+
 }

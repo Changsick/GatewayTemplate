@@ -41,7 +41,7 @@ public class KafkaProducerConfig {
 
         // 트랜잭션 설정
         DefaultKafkaProducerFactory<String, String> factory = new DefaultKafkaProducerFactory<>(config);
-        factory.setTransactionIdPrefix("kafka-transaction-");
+//        factory.setTransactionIdPrefix("kafka-transaction-");
 
         return factory;
     }
