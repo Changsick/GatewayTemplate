@@ -3,4 +3,27 @@ jar.enabled = true
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    implementation      'com.querydsl:querydsl-jpa:5.1.0:jakarta'
+    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
+
+    /* APT가 jakarta API를 찾지 못하는 경우를 방지 (보통 필요 없지만 안전 차원) */
+    annotationProcessor 'jakarta.persistence:jakarta.persistence-api:3.2.0'
+
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
+
+def generated = "$buildDir/generated/sources/annotationProcessor/java/main"
+
+tasks.withType(JavaCompile).configureEach {
+    options.annotationProcessorGeneratedSourcesDirectory = file(generated)
+}
+
+sourceSets.main.java.srcDir generated   // 생성된 Q-파일을 컴파일 소스에 포함
+
+/* IntelliJ가 generated 디렉터리를 ‘Generated Sources’로 인식하도록 헬퍼 */
+apply plugin: 'idea'
+idea.module.generatedSourceDirs += file(generated)
