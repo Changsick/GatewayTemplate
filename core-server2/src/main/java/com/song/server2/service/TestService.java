@@ -1,5 +1,6 @@
 package com.song.server2.service;
 
+import com.song.server2.exception.CustomException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class TestService {
     }
 
     public Menu get(Long id) {
+        if(true) throw new CustomException("TestService", "E001", "error message");
         return menuRepository.findById(id);
     }
 }

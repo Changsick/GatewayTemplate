@@ -1,0 +1,5 @@
+### All
+GET http://localhost:9093/server2?systemCodeId=1
+
+### ById
+GET http://localhost:9093/server2/1
