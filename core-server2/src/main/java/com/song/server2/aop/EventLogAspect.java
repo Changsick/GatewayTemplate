@@ -18,7 +18,7 @@ public class EventLogAspect {
     private static final Logger log = LoggerFactory.getLogger(EventLogAspect.class);
 
     @Before("@annotation(event)") // around 안쓸거면 호출전 쓰면될듯
-    public void beforeMenuAudit(JoinPoint jp, CustomEventLog event) {
+    public void applyEventLog(JoinPoint jp, CustomEventLog event) {
         String domain = event.domain();
         String menu = event.menu();
         String action = event.action();
@@ -27,7 +27,7 @@ public class EventLogAspect {
     }
 
     @AfterThrowing(pointcut = "@annotation(event)", throwing = "ex")
-    public void afterThrowingMenuAudit(JoinPoint jp, CustomEventLog event, Throwable ex) {
+    public void afterThrowingErrorLog(JoinPoint jp, CustomEventLog event, Throwable ex) {
         String domain = event.domain();
         String menu = event.menu();
         String action = event.action();
@@ -44,7 +44,7 @@ public class EventLogAspect {
 
     /*
     @Around("@annotation(event)")
-    public Object aroundMenuAudit(ProceedingJoinPoint pjp, CustomEventLog event) throws Throwable {
+    public Object applyEventLog(ProceedingJoinPoint pjp, CustomEventLog event) throws Throwable {
         String domain = event.domain();
         String menu = event.menu();
         String action = event.action();
@@ -74,7 +74,7 @@ public class EventLogAspect {
     /*
     // 분리하면 이렇게 될듯
     @Before("@annotation(event)") // around 안쓸거면 호출전 쓰면될듯
-    public void beforeMenuAudit(JoinPoint jp, CustomEventLog event) {
+    public void applyEventLog(JoinPoint jp, CustomEventLog event) {
         String domain = event.domain();
         String menu = event.menu();
         String action = event.action();
@@ -83,7 +83,7 @@ public class EventLogAspect {
     }
 
     @Around("@annotation(event)")
-    public Object aroundMenuAudit(ProceedingJoinPoint pjp, CustomEventLog event) throws Throwable {
+    public Object applyEventLog(ProceedingJoinPoint pjp, CustomEventLog event) throws Throwable {
         String domain = event.domain();
         String menu = event.menu();
         String action = event.action();
@@ -97,7 +97,7 @@ public class EventLogAspect {
 
     // Handle exceptions separately
     @AfterThrowing(pointcut = "@annotation(event)", throwing = "ex")
-    public void afterThrowingMenuAudit(JoinPoint jp, CustomEventLog event, Throwable ex) {
+    public void afterThrowingErrorLog(JoinPoint jp, CustomEventLog event, Throwable ex) {
         String domain = event.domain();
         String menu = event.menu();
         String action = event.action();

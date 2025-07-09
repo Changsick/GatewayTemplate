@@ -9,6 +9,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface CustomEventLog {
     String domain();
-    String menu();             // 메뉴명
+    String menu();
     String action();
 }
